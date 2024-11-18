@@ -18,13 +18,19 @@ pipeline{
     stages{
         stage("Check if their are changed tests"){
             when{
-                branch pattern: '^(PR-.*|main)$',
+                branch pattern: '^(PR-.*|main|release-0.3)$',
                 comparator: 'REGEXP';
             }
             steps{
                 script{
                     checkout scm
-                    env.RUN_TESTS = "true" 
+                    env.RUN_TESTS = 'false'
+                    if(env.BRANCH_NAME.contains("PR-") && (env.CHANGE_TARGET == 'main' || env.CHANGE_TARGET == 'release-0.3')){
+                        env.TEST_BRANCH = env.CHANGE_TARGET
+                        env.RUN_TESTS = 'true' 
+                    }else if(env.BRANCH_NAME == 'main' || env.BRANCH_NAME == 'release-0.3'){
+                        env.RUN_TESTS = 'true'
+                    }
                     tackle.setGoTestsEnvVars() //Sets env sensitive env vars
                 }
             }
@@ -37,7 +43,6 @@ pipeline{
             }   
             steps{
                 script{
-                    env.TEST_BRANCH = env.BRANCH_NAME.contains("PR-")? env.CHANGE_TARGET : env.BRANCH_NAME
                     tackle.setGoTestsEnvVars() //Sets env sensitive env vars
                     tackle.deployKonveyorOnMinikube(env.TEST_BRANCH)
                     echo "Applying tackle CR"
